@@ -5,13 +5,16 @@ import { CheckCircle2, ChevronLeft, Cloud, Download, File, Folder, HardDrive, Lo
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 
 type RemoteItem = { Path: string; Name: string; Size: number; ModTime: string; IsDir: boolean };
 type Job = { id: string; source: string; name: string; status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled'; bytes: number; totalBytes: number; speed: number; error?: string };
-type Status = { configured: boolean; destination: string; rcloneVersion: string; jobs: Job[] };
+type Status = { configured: boolean; destination: string; rcloneVersion: string; appVersion: string; jobs: Job[] };
+type UpdateState = { state: 'idle' | 'queued' | 'downloading' | 'building' | 'installing' | 'done' | 'failed'; version?: string; message: string; currentVersion?: string };
+type UpdateInfo = { currentVersion: string; latestVersion: string; available: boolean; notes: string; publishedAt: string; status: UpdateState };
 
 const formatBytes = (value: number) => {
   if (!value) return '0 B';
@@ -34,6 +37,11 @@ export default function Home() {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [showSettings, setShowSettings] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ url: 'https://dav.mypikpak.com', username: '', password: '' });
 
@@ -43,8 +51,7 @@ export default function Home() {
       setStatus(next);
       if (!next.configured) setShowSettings(true);
     } catch {
-      setStatus({ configured: false, destination: '/downloads', rcloneVersion: '等待容器连接', jobs: [] });
-      setShowSettings(true);
+      setStatus((current) => current ?? { configured: false, destination: '/downloads', rcloneVersion: '等待容器连接', appVersion: '未知', jobs: [] });
     }
   }, []);
 
@@ -110,6 +117,52 @@ export default function Home() {
     await loadStatus();
   };
 
+  const checkUpdate = async () => {
+    setShowUpdate(true);
+    setUpdateLoading(true);
+    setUpdateMessage('');
+    try {
+      setUpdateInfo(await api<UpdateInfo>('/api/update'));
+    } catch (cause) {
+      setUpdateMessage(cause instanceof Error ? cause.message : '检查更新失败');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  const installUpdate = async () => {
+    setUpdating(true);
+    setUpdateMessage('正在提交更新…');
+    try {
+      const result = await api<{ queued: boolean; version: string; message: string }>('/api/update', { method: 'POST' });
+      setUpdateMessage(result.message);
+      if (!result.queued) {
+        setUpdating(false);
+        return;
+      }
+      for (let attempt = 0; attempt < 120; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        try {
+          const next = await api<UpdateState>('/api/update/status');
+          setUpdateMessage(next.message || '正在更新…');
+          if (next.state === 'failed') throw new Error(next.message || '更新失败，已保留原版本');
+          if (next.state === 'done' && next.currentVersion === result.version) {
+            setUpdateMessage(`已更新至 ${result.version}，正在刷新页面…`);
+            window.setTimeout(() => window.location.reload(), 1000);
+            return;
+          }
+        } catch (cause) {
+          if (cause instanceof Error && cause.message.includes('已保留原版本')) throw cause;
+          // 切换容器期间连接会短暂中断，继续等待新版本恢复。
+        }
+      }
+      throw new Error('更新等待超时，请稍后重新检查版本');
+    } catch (cause) {
+      setUpdateMessage(cause instanceof Error ? cause.message : '更新失败，原版本仍可继续使用');
+      setUpdating(false);
+    }
+  };
+
   useEffect(() => {
     type ToolContext = { registerTool: (tool: unknown, options?: { signal?: AbortSignal }) => void | Promise<void> };
     const context = (document as Document & { modelContext?: ToolContext }).modelContext;
@@ -149,6 +202,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-2">
             <Badge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-300"><ShieldCheck className="mr-1 h-3.5 w-3.5" />仅局域网</Badge>
+            <Button variant="ghost" size="sm" onClick={() => void checkUpdate()} aria-label="检查应用更新"><RefreshCw className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">更新</span></Button>
             <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} aria-label="连接设置"><Settings2 className="h-5 w-5" /></Button>
           </div>
         </div>
@@ -212,7 +266,7 @@ export default function Home() {
                   })}
             </div>
           </Card>
-          <p className="px-1 text-xs leading-5 text-slate-500">rclone {status?.rcloneVersion} · 凭据只保存在 NAS 的配置卷内。</p>
+          <p className="px-1 text-xs leading-5 text-slate-500">应用 {status?.appVersion ?? '—'} · rclone {status?.rcloneVersion} · 凭据只保存在 NAS 的配置卷内。</p>
         </aside>
       </section>
 
@@ -228,6 +282,26 @@ export default function Home() {
           </form>
         </Card>
       </div> : null}
+
+      <Dialog open={showUpdate} onOpenChange={(open) => { if (!updating) setShowUpdate(open); }}>
+        <DialogContent showCloseButton={!updating} className="border-white/10 bg-[#102128] text-[#e7f1f3] shadow-2xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">应用更新</DialogTitle>
+            <DialogDescription className="text-slate-400">自动下载安装新版本，PikPak 配置和已下载文件不会被删除。</DialogDescription>
+          </DialogHeader>
+          {updateLoading ? <div className="grid min-h-40 place-items-center text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div> : updateInfo ? <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-white/8 bg-black/15 p-3"><p className="text-xs text-slate-500">当前版本</p><p className="mt-1 font-semibold">{updateInfo.currentVersion}</p></div>
+              <div className="rounded-xl border border-white/8 bg-black/15 p-3"><p className="text-xs text-slate-500">最新版本</p><p className="mt-1 font-semibold text-cyan-300">{updateInfo.latestVersion}</p></div>
+            </div>
+            {updateInfo.notes ? <p className="rounded-xl bg-white/[0.04] p-3 text-sm leading-6 text-slate-300">{updateInfo.notes}</p> : null}
+            {updateMessage ? <div className={`rounded-xl px-3 py-2.5 text-sm ${updateMessage.includes('失败') || updateMessage.includes('超时') ? 'bg-red-400/10 text-red-300' : 'bg-cyan-300/10 text-cyan-200'}`}>{updating ? <Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> : null}{updateMessage}</div> : null}
+            <Button onClick={() => void installUpdate()} disabled={!updateInfo.available || updating} className="w-full bg-[#ff6b35] text-white hover:bg-[#ff7d50]">
+              {updating ? '正在更新，请勿关闭…' : updateInfo.available ? `更新到 ${updateInfo.latestVersion}` : '当前已是最新版本'}
+            </Button>
+          </div> : <div className="space-y-3 py-4"><p className="text-sm text-red-300">{updateMessage || '无法获取更新信息'}</p><Button variant="outline" onClick={() => void checkUpdate()}>重新检查</Button></div>}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

@@ -1,0 +1,9 @@
+FROM node:22-alpine
+
+RUN apk add --no-cache ca-certificates docker-cli unzip
+WORKDIR /updater
+COPY server/updater.js /updater/updater.js
+
+ENV NODE_ENV=production CONFIG_DIR=/config
+VOLUME ["/config"]
+CMD ["node", "/updater/updater.js"]

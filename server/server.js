@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, writeFile, rename, stat, unlink } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, stat, unlink } from 'node:fs/promises';
 import { createReadStream, existsSync } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -16,11 +16,46 @@ const webDir = process.env.WEB_DIR || fileURLToPath(new URL('./web/', import.met
 const appPassword = process.env.APP_PASSWORD || '';
 const appUser = process.env.APP_USER || 'admin';
 const maxConcurrent = Math.max(1, Math.min(4, Number(process.env.MAX_CONCURRENT || 2)));
+const appVersion = process.env.APP_VERSION || '0.1.0';
+const updateManifestUrl = process.env.UPDATE_MANIFEST_URL || 'https://raw.githubusercontent.com/Evergaden/pikpak-nas-ui/main/latest.json';
+const updateRequestFile = path.join(configDir, 'update-request.json');
+const updateStatusFile = path.join(configDir, 'update-status.json');
 const downloadUid = Number(process.env.DOWNLOAD_UID || -1);
 const downloadGid = Number(process.env.DOWNLOAD_GID || -1);
 const jobs = new Map();
 const queue = [];
 let running = 0;
+
+const parseVersion = (value) => String(value).replace(/^v/, '').split('.').map((part) => Number(part));
+const compareVersions = (left, right) => {
+  const a = parseVersion(left);
+  const b = parseVersion(right);
+  for (let index = 0; index < 3; index += 1) {
+    if ((a[index] || 0) !== (b[index] || 0)) return (a[index] || 0) - (b[index] || 0);
+  }
+  return 0;
+};
+
+const writeJsonAtomic = async (target, value) => {
+  const temporary = `${target}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+  await rename(temporary, target);
+};
+
+const readUpdateStatus = async () => {
+  try { return JSON.parse(await readFile(updateStatusFile, 'utf8')); }
+  catch { return { state: 'idle', message: '尚未执行更新' }; }
+};
+
+const fetchLatestUpdate = async () => {
+  const response = await fetch(`${updateManifestUrl}?t=${Date.now()}`, { signal: AbortSignal.timeout(10000), headers: { 'User-Agent': 'PikPak-NAS-Updater' } });
+  if (!response.ok) throw new Error(`检查更新失败：HTTP ${response.status}`);
+  const manifest = await response.json();
+  if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || ''))) throw new Error('更新清单中的版本号无效');
+  if (!String(manifest.assetUrl || '').startsWith('https://github.com/Evergaden/pikpak-nas-ui/releases/download/')) throw new Error('更新清单中的下载地址无效');
+  if (!/^[a-f0-9]{64}$/i.test(String(manifest.sha256 || ''))) throw new Error('更新清单中的校验值无效');
+  return manifest;
+};
 
 await mkdir(configDir, { recursive: true });
 await mkdir(downloadDir, { recursive: true });
@@ -203,7 +238,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/status' && req.method === 'GET') {
       let version = '不可用';
       try { version = (await exec('rclone', ['version'], { timeout: 5000 })).stdout.split('\n')[0].replace('rclone ', ''); } catch {}
-      return send(res, 200, { configured: existsSync(configFile), destination: downloadDir, rcloneVersion: version, jobs: [...jobs.values()].slice(-50).reverse().map(publicJob) });
+      return send(res, 200, { configured: existsSync(configFile), destination: downloadDir, rcloneVersion: version, appVersion, jobs: [...jobs.values()].slice(-50).reverse().map(publicJob) });
     }
     if (url.pathname === '/api/config' && req.method === 'POST') {
       await configure(await readJson(req));
@@ -234,6 +269,21 @@ const server = http.createServer(async (req, res) => {
         job.process?.kill('SIGTERM');
       }
       return send(res, 200, { ok: true });
+    }
+    if (url.pathname === '/api/update' && req.method === 'GET') {
+      const manifest = await fetchLatestUpdate();
+      return send(res, 200, { currentVersion: appVersion, latestVersion: manifest.version, available: compareVersions(manifest.version, appVersion) > 0, notes: manifest.notes || '', publishedAt: manifest.publishedAt || '', status: await readUpdateStatus() });
+    }
+    if (url.pathname === '/api/update/status' && req.method === 'GET') {
+      return send(res, 200, { currentVersion: appVersion, ...(await readUpdateStatus()) });
+    }
+    if (url.pathname === '/api/update' && req.method === 'POST') {
+      const manifest = await fetchLatestUpdate();
+      if (compareVersions(manifest.version, appVersion) <= 0) return send(res, 200, { queued: false, version: appVersion, message: '当前已是最新版本' });
+      const request = { version: manifest.version, assetUrl: manifest.assetUrl, sha256: manifest.sha256.toLowerCase(), requestedAt: new Date().toISOString() };
+      await writeJsonAtomic(updateStatusFile, { state: 'queued', version: manifest.version, message: '更新请求已提交', updatedAt: new Date().toISOString() });
+      await writeJsonAtomic(updateRequestFile, request);
+      return send(res, 202, { queued: true, version: manifest.version, message: '更新已开始，请保持页面打开' });
     }
     if (url.pathname.startsWith('/api/')) return send(res, 404, '接口不存在', 'text/plain; charset=utf-8');
     return serveStatic(req, res, url.pathname);

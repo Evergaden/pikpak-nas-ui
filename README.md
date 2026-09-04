@@ -8,6 +8,7 @@
 - 云盘目录浏览与多选下载
 - 最多两个并发任务、实时速度与进度
 - 取消、失败提示、重复下载续传
+- 在管理界面检查并一键安装新版本，失败自动恢复原版本
 - HTTP Basic 登录保护
 - ARM64 Docker 支持
 
@@ -37,4 +38,5 @@ chmod +x install-xiaomi-nas.sh
 - 默认是 HTTP，仅适合可信局域网，不应直接映射到公网。
 - 配置文件中的 WebDAV 密码由 rclone 混淆保存；这不是强加密，应保护配置目录。
 - 容器只挂载自己的配置目录和指定下载目录，不挂载 Docker Socket 或 NAS 根目录。
+- 独立更新助手会挂载 Docker Socket，但不开放网络端口；主网页容器仍然无法直接控制 Docker。
 - 如果凭据泄露，请在 PikPak 的 Connected Apps 中立即撤销。

@@ -1,6 +1,6 @@
 {
   "name": "sites-project",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -9,7 +9,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
-    "lint": "oxlint app/page.tsx app/layout.tsx server/server.js",
+    "lint": "oxlint app/page.tsx app/layout.tsx server/server.js server/updater.js",
     "format": "oxfmt"
   },
   "dependencies": {
