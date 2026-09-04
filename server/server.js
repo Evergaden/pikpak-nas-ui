@@ -119,12 +119,32 @@ const remote = (value = '') => `pikpak:${cleanRemote(value) ? `/${cleanRemote(va
 
 const publicJob = (job) => ({ id: job.id, source: job.source, name: job.name, status: job.status, bytes: job.bytes, totalBytes: job.totalBytes, speed: job.speed, error: job.error || '' });
 
-const configure = async ({ url, username, password }) => {
-  const parsed = new URL(String(url));
-  if (parsed.protocol !== 'https:') throw new Error('WebDAV 地址必须使用 HTTPS');
-  if (!username || !password || /[\r\n]/.test(username)) throw new Error('请填写有效的用户名和密码');
-  const obscured = await obscurePassword(password);
-  const content = `[pikpak]\ntype = webdav\nurl = ${parsed.toString()}\nvendor = other\nuser = ${username}\npass = ${obscured}\n`;
+const readConfiguredMode = async () => {
+  if (!existsSync(configFile)) return null;
+  try {
+    const content = await readFile(configFile, 'utf8');
+    const type = content.match(/^\s*type\s*=\s*(\S+)/m)?.[1];
+    return type === 'pikpak' || type === 'webdav' ? type : null;
+  } catch { return null; }
+};
+
+const configure = async ({ mode = 'webdav', url = '', username, password }) => {
+  const selectedMode = String(mode || 'webdav');
+  if (selectedMode !== 'webdav' && selectedMode !== 'pikpak') throw new Error('连接方式无效');
+  const account = String(username || '').trim();
+  const secret = String(password || '');
+  if (!account || !secret || /[\r\n]/.test(account)) throw new Error('请填写有效的用户名和密码');
+
+  const obscured = await obscurePassword(secret);
+  let content;
+  if (selectedMode === 'pikpak') {
+    content = `[pikpak]\ntype = pikpak\nuser = ${account}\npass = ${obscured}\n`;
+  } else {
+    let parsed;
+    try { parsed = new URL(String(url)); } catch { throw new Error('WebDAV 地址无效'); }
+    if (parsed.protocol !== 'https:') throw new Error('WebDAV 地址必须使用 HTTPS');
+    content = `[pikpak]\ntype = webdav\nurl = ${parsed.toString()}\nvendor = other\nuser = ${account}\npass = ${obscured}\n`;
+  }
   const temp = `${configFile}.tmp`;
   await writeFile(temp, content, { mode: 0o600 });
   try {
@@ -238,7 +258,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/status' && req.method === 'GET') {
       let version = '不可用';
       try { version = (await exec('rclone', ['version'], { timeout: 5000 })).stdout.split('\n')[0].replace('rclone ', ''); } catch {}
-      return send(res, 200, { configured: existsSync(configFile), destination: downloadDir, rcloneVersion: version, appVersion, jobs: [...jobs.values()].slice(-50).reverse().map(publicJob) });
+      const configured = existsSync(configFile);
+      return send(res, 200, { configured, mode: configured ? await readConfiguredMode() : null, destination: downloadDir, rcloneVersion: version, appVersion, jobs: [...jobs.values()].slice(-50).reverse().map(publicJob) });
     }
     if (url.pathname === '/api/config' && req.method === 'POST') {
       await configure(await readJson(req));

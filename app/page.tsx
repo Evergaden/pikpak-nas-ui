@@ -12,7 +12,8 @@ import { Progress } from '@/components/ui/progress';
 
 type RemoteItem = { Path: string; Name: string; Size: number; ModTime: string; IsDir: boolean };
 type Job = { id: string; source: string; name: string; status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled'; bytes: number; totalBytes: number; speed: number; error?: string };
-type Status = { configured: boolean; destination: string; rcloneVersion: string; appVersion: string; jobs: Job[] };
+type ConnectionMode = 'webdav' | 'pikpak';
+type Status = { configured: boolean; mode: ConnectionMode | null; destination: string; rcloneVersion: string; appVersion: string; jobs: Job[] };
 type UpdateState = { state: 'idle' | 'queued' | 'downloading' | 'building' | 'installing' | 'done' | 'failed'; version?: string; message: string; currentVersion?: string };
 type UpdateInfo = { currentVersion: string; latestVersion: string; available: boolean; notes: string; publishedAt: string; status: UpdateState };
 
@@ -22,6 +23,8 @@ const formatBytes = (value: number) => {
   const exponent = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
   return `${(value / 1024 ** exponent).toFixed(exponent > 1 ? 1 : 0)} ${units[exponent]}`;
 };
+
+const defaultWebDavUrl = 'https://dav.pikpak.ai';
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
@@ -43,7 +46,7 @@ export default function Home() {
   const [updating, setUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ url: 'https://dav.mypikpak.com', username: '', password: '' });
+  const [form, setForm] = useState<{ mode: ConnectionMode; url: string; username: string; password: string }>({ mode: 'webdav', url: defaultWebDavUrl, username: '', password: '' });
 
   const loadStatus = useCallback(async () => {
     try {
@@ -51,9 +54,16 @@ export default function Home() {
       setStatus(next);
       if (!next.configured) setShowSettings(true);
     } catch {
-      setStatus((current) => current ?? { configured: false, destination: '/downloads', rcloneVersion: '等待容器连接', appVersion: '未知', jobs: [] });
+      setStatus((current) => current ?? { configured: false, mode: null, destination: '/downloads', rcloneVersion: '等待容器连接', appVersion: '未知', jobs: [] });
     }
   }, []);
+
+  const openSettings = () => {
+    const mode = status?.mode ?? form.mode;
+    setForm((current) => ({ ...current, mode, url: mode === 'webdav' ? current.url || defaultWebDavUrl : current.url }));
+    setError('');
+    setShowSettings(true);
+  };
 
   const loadFiles = useCallback(async (nextPath: string) => {
     setLoading(true);
@@ -203,7 +213,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Badge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-300"><ShieldCheck className="mr-1 h-3.5 w-3.5" />仅局域网</Badge>
             <Button variant="ghost" size="sm" onClick={() => void checkUpdate()} aria-label="检查应用更新"><RefreshCw className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">更新</span></Button>
-            <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} aria-label="连接设置"><Settings2 className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={openSettings} aria-label="连接设置"><Settings2 className="h-5 w-5" /></Button>
           </div>
         </div>
       </header>
@@ -211,7 +221,7 @@ export default function Home() {
       <section className="mx-auto grid max-w-[1500px] gap-5 px-4 py-5 sm:px-7 lg:grid-cols-[minmax(0,1fr)_390px]">
         <div className="min-w-0 space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Metric icon={<Cloud />} label="PikPak" value={status?.configured ? '已连接' : '等待配置'} tone="cyan" />
+            <Metric icon={<Cloud />} label="PikPak" value={status?.configured ? (status.mode === 'pikpak' ? '账号已连接' : 'WebDAV 已连接') : '等待配置'} tone="cyan" />
             <Metric icon={<Download />} label="进行中" value={`${activeJobs.length} 个任务`} tone="orange" />
             <Metric icon={<HardDrive />} label="保存至" value={status?.destination ?? '/downloads'} tone="slate" />
           </div>
@@ -229,7 +239,7 @@ export default function Home() {
             </div>
 
             <div className="min-h-[520px]">
-              {!status?.configured ? <EmptyState title="连接你的 PikPak" body="填写官方 WebDAV 凭据后，即可浏览并下载到 NAS。" action={() => setShowSettings(true)} />
+              {!status?.configured ? <EmptyState title="连接你的 PikPak" body="选择 WebDAV 或 PikPak 账号登录后，即可浏览并下载到 NAS。" action={openSettings} />
                 : loading ? <div className="grid min-h-[420px] place-items-center text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
                 : error && !items.length ? <EmptyState title="暂时无法读取文件" body={error} action={() => loadFiles(path)} actionLabel="重试" />
                 : !items.length ? <EmptyState title="这个文件夹是空的" body="返回上一级，或者刷新后再试。" />
@@ -266,17 +276,19 @@ export default function Home() {
                   })}
             </div>
           </Card>
-          <p className="px-1 text-xs leading-5 text-slate-500">应用 {status?.appVersion ?? '—'} · rclone {status?.rcloneVersion} · 凭据只保存在 NAS 的配置卷内。</p>
+          <p className="px-1 text-xs leading-5 text-slate-500">应用 {status?.appVersion ?? '—'} · rclone {status?.rcloneVersion} · 连接方式 {status?.mode === 'pikpak' ? 'PikPak 账号' : status?.mode === 'webdav' ? 'WebDAV' : '—'} · 凭据只保存在 NAS 的配置卷内。</p>
         </aside>
       </section>
 
       {showSettings ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
         <Card className="w-full max-w-md border-white/10 bg-[#102128] p-5 text-inherit shadow-2xl">
-          <div className="mb-5 flex items-start justify-between gap-4"><div><h2 className="text-lg font-semibold">连接 PikPak</h2><p className="mt-1 text-sm text-slate-400">使用 PikPak 专用 WebDAV 凭据，不是主账号密码。</p></div>{status?.configured ? <Button variant="ghost" size="icon-sm" onClick={() => setShowSettings(false)}><X className="h-4 w-4" /></Button> : null}</div>
+          <div className="mb-5 flex items-start justify-between gap-4"><div><h2 className="text-lg font-semibold">连接 PikPak</h2><p className="mt-1 text-sm text-slate-400">{form.mode === 'webdav' ? '使用 PikPak 专用 WebDAV 凭据。' : '使用 PikPak 主账号通过 rclone 原生接口连接，不需要 WebDAV。'}</p></div>{status?.configured ? <Button variant="ghost" size="icon-sm" onClick={() => setShowSettings(false)}><X className="h-4 w-4" /></Button> : null}</div>
           <form className="space-y-4" onSubmit={saveConfig}>
-            <div className="space-y-2"><Label htmlFor="url">WebDAV 地址</Label><Input id="url" value={form.url} onChange={(event) => setForm({ ...form, url: event.target.value })} required className="border-white/10 bg-black/20" /></div>
-            <div className="space-y-2"><Label htmlFor="username">WebDAV 用户名</Label><Input id="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} required autoComplete="username" className="border-white/10 bg-black/20" /></div>
-            <div className="space-y-2"><Label htmlFor="password">WebDAV 密码</Label><Input id="password" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required autoComplete="current-password" className="border-white/10 bg-black/20" /></div>
+            <div className="space-y-2"><Label>连接方式</Label><div className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/20 p-1"><button type="button" aria-pressed={form.mode === 'webdav'} onClick={() => setForm((current) => ({ ...current, mode: 'webdav', url: current.url || defaultWebDavUrl }))} className={`rounded-md px-3 py-2 text-sm transition-colors ${form.mode === 'webdav' ? 'bg-cyan-300/15 text-cyan-200' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}>WebDAV</button><button type="button" aria-pressed={form.mode === 'pikpak'} onClick={() => setForm((current) => ({ ...current, mode: 'pikpak' }))} className={`rounded-md px-3 py-2 text-sm transition-colors ${form.mode === 'pikpak' ? 'bg-cyan-300/15 text-cyan-200' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}>账号登录（原生）</button></div></div>
+            {form.mode === 'webdav' ? <div className="space-y-2"><Label htmlFor="url">WebDAV 地址</Label><Input id="url" value={form.url} onChange={(event) => setForm({ ...form, url: event.target.value })} required className="border-white/10 bg-black/20" /><p className="text-xs leading-5 text-slate-500">可填 https://dav.pikpak.ai 或旧地址 https://dav.mypikpak.com。</p></div> : null}
+            <div className="space-y-2"><Label htmlFor="username">{form.mode === 'webdav' ? 'WebDAV 用户名' : 'PikPak 账号（邮箱或手机号）'}</Label><Input id="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} required autoComplete="username" className="border-white/10 bg-black/20" /></div>
+            <div className="space-y-2"><Label htmlFor="password">{form.mode === 'webdav' ? 'WebDAV 密码' : 'PikPak 主账号密码'}</Label><Input id="password" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required autoComplete="current-password" className="border-white/10 bg-black/20" /></div>
+            {form.mode === 'pikpak' ? <p className="text-xs leading-5 text-slate-500">账号密码会由 rclone 混淆后保存在 NAS 配置卷中；如果账号启用了验证码或二次验证，原生登录可能仍会失败。</p> : null}
             {error ? <p className="rounded-lg bg-red-400/10 px-3 py-2 text-sm text-red-300">{error}</p> : null}
             <Button type="submit" disabled={saving} className="w-full bg-[#ff6b35] text-white hover:bg-[#ff7d50]">{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}保存并测试连接</Button>
           </form>
