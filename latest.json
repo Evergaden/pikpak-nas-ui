@@ -1,7 +1,7 @@
 {
-  "version": "0.2.1",
-  "imageBundleUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.1/pikpak-nas-images-v0.2.1.tar.gz",
-  "imageBundleChecksumUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.1/pikpak-nas-images-v0.2.1.tar.gz.sha256",
-  "notes": "安装和界面更新改用 GitHub 上的预构建 ARM64 镜像包，不再依赖 NAS 访问 Docker Hub。",
-  "publishedAt": "2026-09-04"
+  "version": "0.2.2",
+  "imageBundleUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.2/pikpak-nas-images-v0.2.2.tar.gz",
+  "imageBundleChecksumUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.2/pikpak-nas-images-v0.2.2.tar.gz.sha256",
+  "notes": "新增 PikPak 账号登录（原生 rclone）模式，保留 WebDAV；安装和界面更新继续使用预构建 ARM64 镜像包。",
+  "publishedAt": "2026-09-05"
 }
