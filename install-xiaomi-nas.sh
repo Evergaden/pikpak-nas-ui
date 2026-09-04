@@ -7,7 +7,7 @@ APP_ROOT="$DATA_ROOT/Docker/pikpak-nas"
 DOWNLOAD_ROOT="$DATA_ROOT/PikPakDownloads"
 CONFIG_ROOT="$APP_ROOT/config"
 ENV_FILE="$CONFIG_ROOT/app.env"
-VERSION="0.2.1"
+VERSION="0.2.2"
 IMAGE_ARCHIVE="pikpak-nas-images-v$VERSION.tar.gz"
 IMAGE_URL="https://github.com/Evergaden/pikpak-nas-ui/releases/download/v$VERSION/$IMAGE_ARCHIVE"
 
