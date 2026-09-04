@@ -1,0 +1,43 @@
+name: Build ARM64 image bundle
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, such as v0.2.1
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ARM64 images
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          VERSION="${TAG#v}"
+          docker buildx build --platform linux/arm64 --load --build-arg "APP_VERSION=$VERSION" -t "pikpak-nas-ui:$VERSION" .
+          docker buildx build --platform linux/arm64 --load -f Dockerfile.updater -t "pikpak-nas-updater:$VERSION" .
+          docker save "pikpak-nas-ui:$VERSION" "pikpak-nas-updater:$VERSION" | gzip -9 > "pikpak-nas-images-$TAG.tar.gz"
+          sha256sum "pikpak-nas-images-$TAG.tar.gz" > "pikpak-nas-images-$TAG.tar.gz.sha256"
+      - name: Upload bundle to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release upload "$TAG" "pikpak-nas-images-$TAG.tar.gz" "pikpak-nas-images-$TAG.tar.gz.sha256" --clobber

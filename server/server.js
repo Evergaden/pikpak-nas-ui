@@ -52,8 +52,8 @@ const fetchLatestUpdate = async () => {
   if (!response.ok) throw new Error(`检查更新失败：HTTP ${response.status}`);
   const manifest = await response.json();
   if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || ''))) throw new Error('更新清单中的版本号无效');
-  if (!String(manifest.assetUrl || '').startsWith('https://github.com/Evergaden/pikpak-nas-ui/releases/download/')) throw new Error('更新清单中的下载地址无效');
-  if (!/^[a-f0-9]{64}$/i.test(String(manifest.sha256 || ''))) throw new Error('更新清单中的校验值无效');
+  const releasePrefix = 'https://github.com/Evergaden/pikpak-nas-ui/releases/download/';
+  if (!String(manifest.imageBundleUrl || '').startsWith(releasePrefix) || !String(manifest.imageBundleChecksumUrl || '').startsWith(releasePrefix)) throw new Error('更新清单中的镜像地址无效');
   return manifest;
 };
 
@@ -280,7 +280,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/update' && req.method === 'POST') {
       const manifest = await fetchLatestUpdate();
       if (compareVersions(manifest.version, appVersion) <= 0) return send(res, 200, { queued: false, version: appVersion, message: '当前已是最新版本' });
-      const request = { version: manifest.version, assetUrl: manifest.assetUrl, sha256: manifest.sha256.toLowerCase(), requestedAt: new Date().toISOString() };
+      const request = { version: manifest.version, imageBundleUrl: manifest.imageBundleUrl, imageBundleChecksumUrl: manifest.imageBundleChecksumUrl, requestedAt: new Date().toISOString() };
       await writeJsonAtomic(updateStatusFile, { state: 'queued', version: manifest.version, message: '更新请求已提交', updatedAt: new Date().toISOString() });
       await writeJsonAtomic(updateRequestFile, request);
       return send(res, 202, { queued: true, version: manifest.version, message: '更新已开始，请保持页面打开' });

@@ -7,6 +7,9 @@ APP_ROOT="$DATA_ROOT/Docker/pikpak-nas"
 DOWNLOAD_ROOT="$DATA_ROOT/PikPakDownloads"
 CONFIG_ROOT="$APP_ROOT/config"
 ENV_FILE="$CONFIG_ROOT/app.env"
+VERSION="0.2.1"
+IMAGE_ARCHIVE="pikpak-nas-images-v$VERSION.tar.gz"
+IMAGE_URL="https://github.com/Evergaden/pikpak-nas-ui/releases/download/v$VERSION/$IMAGE_ARCHIVE"
 
 if [ ! -x "$DOCKER" ]; then
   echo "找不到 Docker：$DOCKER" >&2
@@ -37,18 +40,40 @@ MAX_CONCURRENT=2
 TZ=Asia/Shanghai
 EOF
 
-"$DOCKER" build --build-arg APP_VERSION=0.2.0 -t pikpak-nas-ui:0.2.0 .
-"$DOCKER" build -f Dockerfile.updater -t pikpak-nas-updater:local .
+TEMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TEMP_DIR"' EXIT INT TERM
+echo "正在下载 ARM64 Docker 镜像包…"
+if command -v curl >/dev/null 2>&1; then
+  curl -fL "$IMAGE_URL" -o "$TEMP_DIR/$IMAGE_ARCHIVE"
+  curl -fL "$IMAGE_URL.sha256" -o "$TEMP_DIR/$IMAGE_ARCHIVE.sha256"
+else
+  wget -O "$TEMP_DIR/$IMAGE_ARCHIVE" "$IMAGE_URL"
+  wget -O "$TEMP_DIR/$IMAGE_ARCHIVE.sha256" "$IMAGE_URL.sha256"
+fi
+EXPECTED=$(awk '{print $1}' "$TEMP_DIR/$IMAGE_ARCHIVE.sha256" | tr 'A-F' 'a-f')
+if command -v sha256sum >/dev/null 2>&1; then
+  ACTUAL=$(sha256sum "$TEMP_DIR/$IMAGE_ARCHIVE" | awk '{print $1}' | tr 'A-F' 'a-f')
+elif command -v busybox >/dev/null 2>&1; then
+  ACTUAL=$(busybox sha256sum "$TEMP_DIR/$IMAGE_ARCHIVE" | awk '{print $1}' | tr 'A-F' 'a-f')
+else
+  echo "系统中没有 SHA-256 校验工具，已停止安装。" >&2
+  exit 1
+fi
+if [ -z "$EXPECTED" ] || [ "$EXPECTED" != "$ACTUAL" ]; then
+  echo "Docker 镜像包校验失败，已停止安装。" >&2
+  exit 1
+fi
+"$DOCKER" load -i "$TEMP_DIR/$IMAGE_ARCHIVE"
 "$DOCKER" rm -f pikpak-nas >/dev/null 2>&1 || true
 "$DOCKER" run -d \
   --name pikpak-nas \
   --restart unless-stopped \
   -p 8088:8080 \
   --env-file "$ENV_FILE" \
-  -e APP_VERSION=0.2.0 \
+  -e "APP_VERSION=$VERSION" \
   -v "$CONFIG_ROOT:/config" \
   -v "$DOWNLOAD_ROOT:/downloads" \
-  pikpak-nas-ui:0.2.0
+  "pikpak-nas-ui:$VERSION"
 
 "$DOCKER" rm -f pikpak-nas-updater >/dev/null 2>&1 || true
 "$DOCKER" run -d \
@@ -61,7 +86,7 @@ EOF
   -e APP_IMAGE=pikpak-nas-ui \
   -v "$CONFIG_ROOT:/config" \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  pikpak-nas-updater:local
+  "pikpak-nas-updater:$VERSION"
 
 echo
 echo "安装完成"

@@ -13,13 +13,18 @@ const hostDownloadDir = process.env.HOST_DOWNLOAD_DIR;
 const hostPort = process.env.HOST_PORT || '8088';
 const containerName = process.env.APP_CONTAINER || 'pikpak-nas';
 const imageName = process.env.APP_IMAGE || 'pikpak-nas-ui';
-const allowedAsset = /^https:\/\/github\.com\/Evergaden\/pikpak-nas-ui\/releases\/download\/v\d+\.\d+\.\d+\/pikpak-nas-ui-v\d+\.\d+\.\d+\.zip$/;
+const allowedBundle = /^https:\/\/github\.com\/Evergaden\/pikpak-nas-ui\/releases\/download\/v\d+\.\d+\.\d+\/pikpak-nas-images-v\d+\.\d+\.\d+\.tar\.gz$/;
 let processing = false;
 
 if (!hostConfigDir || !hostDownloadDir) throw new Error('HOST_CONFIG_DIR and HOST_DOWNLOAD_DIR are required');
 
 const docker = async (args, options = {}) => exec('docker', args, { timeout: 15 * 60 * 1000, maxBuffer: 16 * 1024 * 1024, ...options });
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const download = async (url, timeout = 10 * 60 * 1000) => {
+  const response = await fetch(url, { signal: AbortSignal.timeout(timeout), headers: { 'User-Agent': 'PikPak-NAS-Updater' } });
+  if (!response.ok) throw new Error(`下载失败：HTTP ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
+};
 const writeStatus = async (state, version, message) => {
   const temporary = `${statusFile}.tmp`;
   await writeFile(temporary, `${JSON.stringify({ state, version, message, updatedAt: new Date().toISOString() }, null, 2)}\n`, { mode: 0o600 });
@@ -54,25 +59,24 @@ const rollback = async () => {
 
 const processUpdate = async (request) => {
   const version = String(request.version || '');
-  const assetUrl = String(request.assetUrl || '');
-  const expected = String(request.sha256 || '').toLowerCase();
-  if (!/^\d+\.\d+\.\d+$/.test(version) || !allowedAsset.test(assetUrl) || !/^[a-f0-9]{64}$/.test(expected)) throw new Error('更新请求未通过安全校验');
+  const bundleUrl = String(request.imageBundleUrl || '');
+  const checksumUrl = String(request.imageBundleChecksumUrl || '');
+  if (!/^\d+\.\d+\.\d+$/.test(version) || !allowedBundle.test(bundleUrl) || checksumUrl !== `${bundleUrl}.sha256`) throw new Error('更新请求未通过安全校验');
 
   const workDir = `/tmp/pikpak-update-${Date.now()}`;
-  const archive = path.join(workDir, 'release.zip');
-  const sourceDir = path.join(workDir, 'source');
-  await mkdir(sourceDir, { recursive: true });
+  const archive = path.join(workDir, 'images.tar.gz');
+  await mkdir(workDir, { recursive: true });
   try {
-    await writeStatus('downloading', version, '正在下载安装包');
-    const response = await fetch(assetUrl, { signal: AbortSignal.timeout(120000), headers: { 'User-Agent': 'PikPak-NAS-Updater' } });
-    if (!response.ok) throw new Error(`下载安装包失败：HTTP ${response.status}`);
-    const payload = Buffer.from(await response.arrayBuffer());
+    await writeStatus('downloading', version, '正在下载 ARM64 镜像包');
+    const checksumText = (await download(checksumUrl, 30000)).toString('utf8');
+    const expected = checksumText.trim().split(/\s+/)[0]?.toLowerCase() || '';
+    if (!/^[a-f0-9]{64}$/.test(expected)) throw new Error('镜像包校验文件无效');
+    const payload = await download(bundleUrl);
     if (createHash('sha256').update(payload).digest('hex') !== expected) throw new Error('安装包 SHA-256 校验失败');
     await writeFile(archive, payload, { mode: 0o600 });
-    await exec('unzip', ['-q', archive, '-d', sourceDir], { timeout: 60000 });
 
-    await writeStatus('building', version, '正在构建新版本');
-    await docker(['build', '--build-arg', `APP_VERSION=${version}`, '-t', `${imageName}:${version}`, sourceDir]);
+    await writeStatus('building', version, '正在载入新版本镜像');
+    await docker(['load', '-i', archive]);
 
     await writeStatus('installing', version, '正在切换到新版本，页面会短暂断开');
     await docker(['rm', '-f', `${containerName}-rollback`]).catch(() => undefined);

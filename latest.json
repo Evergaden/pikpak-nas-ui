@@ -1,7 +1,7 @@
 {
-  "version": "0.2.0",
-  "assetUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.0/pikpak-nas-ui-v0.2.0.zip",
-  "sha256": "1975807b61038b5327072283fab84fbe6335dd079435a46b74ff7a0dd60e32e5",
-  "notes": "新增界面内检查更新和一键安装；更新失败时自动恢复原版本；保留 PikPak 配置、管理密码和下载目录。",
+  "version": "0.2.1",
+  "imageBundleUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.1/pikpak-nas-images-v0.2.1.tar.gz",
+  "imageBundleChecksumUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.1/pikpak-nas-images-v0.2.1.tar.gz.sha256",
+  "notes": "安装和界面更新改用 GitHub 上的预构建 ARM64 镜像包，不再依赖 NAS 访问 Docker Hub。",
   "publishedAt": "2026-09-04"
 }
