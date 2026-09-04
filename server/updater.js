@@ -13,6 +13,7 @@ const hostDownloadDir = process.env.HOST_DOWNLOAD_DIR;
 const hostPort = process.env.HOST_PORT || '8088';
 const containerName = process.env.APP_CONTAINER || 'pikpak-nas';
 const imageName = process.env.APP_IMAGE || 'pikpak-nas-ui';
+const dockerDnsServers = String(process.env.DOCKER_DNS_SERVERS || '223.5.5.5,119.29.29.29').split(',').map((value) => value.trim()).filter(Boolean);
 const allowedBundle = /^https:\/\/github\.com\/Evergaden\/pikpak-nas-ui\/releases\/download\/v\d+\.\d+\.\d+\/pikpak-nas-images-v\d+\.\d+\.\d+\.tar\.gz$/;
 let processing = false;
 
@@ -46,6 +47,7 @@ const readEnv = async () => {
 
 const runApplication = async (version) => {
   const args = ['run', '-d', '--name', containerName, '--restart', 'unless-stopped', '-p', `${hostPort}:8080`];
+  for (const dns of dockerDnsServers) args.push('--dns', dns);
   for (const value of await readEnv()) args.push('-e', value);
   args.push('-e', `APP_VERSION=${version}`, '-v', `${hostConfigDir}:/config`, '-v', `${hostDownloadDir}:/downloads`, `${imageName}:${version}`);
   await docker(args);

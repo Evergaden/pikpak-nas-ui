@@ -7,7 +7,7 @@ APP_ROOT="$DATA_ROOT/Docker/pikpak-nas"
 DOWNLOAD_ROOT="$DATA_ROOT/PikPakDownloads"
 CONFIG_ROOT="$APP_ROOT/config"
 ENV_FILE="$CONFIG_ROOT/app.env"
-VERSION="0.2.2"
+VERSION="0.2.3"
 IMAGE_ARCHIVE="pikpak-nas-images-v$VERSION.tar.gz"
 IMAGE_URL="https://github.com/Evergaden/pikpak-nas-ui/releases/download/v$VERSION/$IMAGE_ARCHIVE"
 
@@ -69,6 +69,8 @@ fi
   --name pikpak-nas \
   --restart unless-stopped \
   -p 8088:8080 \
+  --dns 223.5.5.5 \
+  --dns 119.29.29.29 \
   --env-file "$ENV_FILE" \
   -e "APP_VERSION=$VERSION" \
   -v "$CONFIG_ROOT:/config" \
@@ -79,11 +81,14 @@ fi
 "$DOCKER" run -d \
   --name pikpak-nas-updater \
   --restart unless-stopped \
+  --dns 223.5.5.5 \
+  --dns 119.29.29.29 \
   -e "HOST_CONFIG_DIR=$CONFIG_ROOT" \
   -e "HOST_DOWNLOAD_DIR=$DOWNLOAD_ROOT" \
   -e HOST_PORT=8088 \
   -e APP_CONTAINER=pikpak-nas \
   -e APP_IMAGE=pikpak-nas-ui \
+  -e DOCKER_DNS_SERVERS=223.5.5.5,119.29.29.29 \
   -v "$CONFIG_ROOT:/config" \
   -v /var/run/docker.sock:/var/run/docker.sock \
   "pikpak-nas-updater:$VERSION"
