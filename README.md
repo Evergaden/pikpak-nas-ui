@@ -13,7 +13,15 @@
 
 ## 小米 NAS 安装
 
-将整个目录上传并解压到 NAS，在目录中执行：
+SSH 登录 NAS 后，可直接在线安装：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Evergaden/pikpak-nas-ui/main/install-online.sh | sh
+```
+
+在线安装器会下载固定版本的 Release ZIP，并在 SHA-256 校验通过后执行安装。
+
+也可以手动将整个目录上传并解压到 NAS，在目录中执行：
 
 ```sh
 chmod +x install-xiaomi-nas.sh
