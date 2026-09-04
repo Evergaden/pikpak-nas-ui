@@ -1,0 +1,18 @@
+services:
+  pikpak-nas:
+    build: .
+    image: pikpak-nas-ui:local
+    container_name: pikpak-nas
+    restart: unless-stopped
+    ports:
+      - "8088:8080"
+    environment:
+      APP_USER: admin
+      APP_PASSWORD: "CHANGE_ME"
+      DOWNLOAD_UID: "0"
+      DOWNLOAD_GID: "0"
+      MAX_CONCURRENT: "2"
+      TZ: Asia/Shanghai
+    volumes:
+      - ./runtime/config:/config
+      - ./runtime/downloads:/downloads

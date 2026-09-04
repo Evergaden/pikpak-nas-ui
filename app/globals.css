@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+:root {
+  --background: #071014;
+  --foreground: #e7f1f3;
+  --card: #0c1a20;
+  --card-foreground: #e7f1f3;
+  --popover: #102128;
+  --popover-foreground: #e7f1f3;
+  --primary: #ff6b35;
+  --primary-foreground: #fff;
+  --secondary: #15272e;
+  --secondary-foreground: #e7f1f3;
+  --muted: #15272e;
+  --muted-foreground: #8ca1a8;
+  --accent: #17313a;
+  --accent-foreground: #a5f3fc;
+  --destructive: #ef4444;
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.1);
+  --ring: #67e8f9;
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html { color-scheme: dark; }
+  body { @apply bg-background text-foreground antialiased; font-family: Inter, "Microsoft YaHei", system-ui, sans-serif; }
+  button, input { font: inherit; }
+}
