@@ -1,7 +1,7 @@
 FROM rclone/rclone:1.75.0 AS rclone
 FROM node:22-alpine
 
-ARG APP_VERSION=0.2.1
+ARG APP_VERSION=0.2.6
 
 RUN apk add --no-cache ca-certificates tini
 COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone

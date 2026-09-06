@@ -7,10 +7,10 @@ APP_ROOT="$DATA_ROOT/Docker/pikpak-nas"
 DOWNLOAD_ROOT="$DATA_ROOT/PikPakDownloads"
 CONFIG_ROOT="$APP_ROOT/config"
 ENV_FILE="$CONFIG_ROOT/app.env"
-VERSION="0.2.5"
+VERSION="0.2.6"
 IMAGE_ARCHIVE="pikpak-nas-images-v$VERSION.tar.gz"
-IMAGE_URL="https://api.github.com/repos/Evergaden/pikpak-nas-ui/releases/assets/547146824"
-IMAGE_CHECKSUM_URL="https://api.github.com/repos/Evergaden/pikpak-nas-ui/releases/assets/547146821"
+IMAGE_URL="https://github.com/Evergaden/pikpak-nas-ui/releases/download/v$VERSION/$IMAGE_ARCHIVE"
+IMAGE_CHECKSUM_URL="$IMAGE_URL.sha256"
 
 if [ ! -x "$DOCKER" ]; then
   echo "找不到 Docker：$DOCKER" >&2
@@ -81,10 +81,9 @@ fi
 "$DOCKER" run -d \
   --name pikpak-nas \
   --restart unless-stopped \
-  -p 8088:8080 \
-  --dns 223.5.5.5 \
-  --dns 119.29.29.29 \
+  --network host \
   --env-file "$ENV_FILE" \
+  -e PORT=8088 \
   -e "APP_VERSION=$VERSION" \
   -v "$CONFIG_ROOT:/config" \
   -v "$DOWNLOAD_ROOT:/downloads" \
@@ -94,13 +93,13 @@ fi
 "$DOCKER" run -d \
   --name pikpak-nas-updater \
   --restart unless-stopped \
-  --dns 223.5.5.5 \
-  --dns 119.29.29.29 \
+  --network host \
   -e "HOST_CONFIG_DIR=$CONFIG_ROOT" \
   -e "HOST_DOWNLOAD_DIR=$DOWNLOAD_ROOT" \
   -e HOST_PORT=8088 \
   -e APP_CONTAINER=pikpak-nas \
   -e APP_IMAGE=pikpak-nas-ui \
+  -e DOCKER_NETWORK_MODE=host \
   -e DOCKER_DNS_SERVERS=223.5.5.5,119.29.29.29 \
   -v "$CONFIG_ROOT:/config" \
   -v /var/run/docker.sock:/var/run/docker.sock \

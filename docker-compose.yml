@@ -4,12 +4,9 @@ services:
     image: pikpak-nas-ui:local
     container_name: pikpak-nas
     restart: unless-stopped
-    ports:
-      - "8088:8080"
-    dns:
-      - 223.5.5.5
-      - 119.29.29.29
+    network_mode: host
     environment:
+      PORT: "8088"
       APP_USER: admin
       APP_PASSWORD: "CHANGE_ME"
       DOWNLOAD_UID: "0"
