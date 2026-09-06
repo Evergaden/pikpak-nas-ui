@@ -44,6 +44,12 @@ else
   exit 1
 fi
 
-cd "$TEMP_DIR/app"
+INSTALLER=$(find "$TEMP_DIR/app" -type f -name install-xiaomi-nas.sh | head -n 1)
+if [ -z "$INSTALLER" ]; then
+  echo "安装包中找不到 install-xiaomi-nas.sh。" >&2
+  exit 1
+fi
+INSTALL_DIR=$(dirname "$INSTALLER")
+cd "$INSTALL_DIR"
 chmod +x install-xiaomi-nas.sh
 ./install-xiaomi-nas.sh
