@@ -9,8 +9,8 @@ CONFIG_ROOT="$APP_ROOT/config"
 ENV_FILE="$CONFIG_ROOT/app.env"
 VERSION="0.2.7"
 IMAGE_ARCHIVE="pikpak-nas-images-v$VERSION.tar.gz"
-IMAGE_URL="https://github.com/Evergaden/pikpak-nas-ui/releases/download/v$VERSION/$IMAGE_ARCHIVE"
-IMAGE_CHECKSUM_URL="$IMAGE_URL.sha256"
+IMAGE_URL="https://api.github.com/repos/Evergaden/pikpak-nas-ui/releases/assets/547206572"
+IMAGE_CHECKSUM_URL="https://api.github.com/repos/Evergaden/pikpak-nas-ui/releases/assets/547206573"
 
 if [ ! -x "$DOCKER" ]; then
   echo "找不到 Docker：$DOCKER" >&2
