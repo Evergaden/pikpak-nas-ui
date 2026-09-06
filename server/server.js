@@ -148,6 +148,10 @@ const configure = async ({ mode = 'webdav', url = '', username, password }) => {
   const temp = `${configFile}.tmp`;
   await writeFile(temp, content, { mode: 0o600 });
   try {
+    if (selectedMode === 'pikpak') {
+      // Writing user/pass alone does not run the backend's authorization hook.
+      await exec('rclone', ['--config', temp, 'config', 'reconnect', 'pikpak:', '--auto-confirm'], { timeout: 120000, maxBuffer: 16 * 1024 * 1024 });
+    }
     await exec('rclone', ['--config', temp, 'lsd', 'pikpak:', '--max-depth', '1'], { timeout: 120000, maxBuffer: 16 * 1024 * 1024 });
   } catch (error) {
     await unlink(temp).catch(() => undefined);
