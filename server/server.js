@@ -199,7 +199,7 @@ const startJob = async (job) => {
     const { stdout } = await runRclone(['lsjson', remote(job.source), '--stat']);
     isDir = Boolean(JSON.parse(stdout).IsDir);
   } catch { /* copy will report the real error */ }
-  const args = ['--config', configFile, isDir ? 'copy' : 'copyto', remote(job.source), target, '--stats', '1s', '--stats-one-line-json', '--use-json-log', '--transfers', '2', '--checkers', '4', '--retries', '5'];
+  const args = ['--config', configFile, isDir ? 'copy' : 'copyto', remote(job.source), target, '--stats', '1s', '--stats-log-level', 'NOTICE', '--use-json-log', '--transfers', '2', '--checkers', '4', '--retries', '5'];
   const child = spawn('rclone', args);
   job.process = child;
   let stderr = '';

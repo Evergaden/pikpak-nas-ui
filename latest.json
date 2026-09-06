@@ -1,7 +1,7 @@
 {
-  "version": "0.2.6",
-  "imageBundleUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.6/pikpak-nas-images-v0.2.6.tar.gz",
-  "imageBundleChecksumUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.6/pikpak-nas-images-v0.2.6.tar.gz.sha256",
-  "notes": "应用和更新器改用 NAS 宿主机网络，修复 Docker 桥接网络无法访问 DNS；包含原生账号授权修复。",
+  "version": "0.2.7",
+  "imageBundleUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.7/pikpak-nas-images-v0.2.7.tar.gz",
+  "imageBundleChecksumUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.7/pikpak-nas-images-v0.2.7.tar.gz.sha256",
+  "notes": "修复 WebDAV 下载时 rclone 不支持 --stats-one-line-json 导致任务立即失败的问题。",
   "publishedAt": "2026-09-06"
 }
