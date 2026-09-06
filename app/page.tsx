@@ -52,7 +52,6 @@ export default function Home() {
     try {
       const next = await api<Status>('/api/status');
       setStatus(next);
-      if (!next.configured) setShowSettings(true);
     } catch {
       setStatus((current) => current ?? { configured: false, mode: null, destination: '/downloads', rcloneVersion: '等待容器连接', appVersion: '未知', jobs: [] });
     }
@@ -282,7 +281,7 @@ export default function Home() {
 
       {showSettings ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
         <Card className="w-full max-w-md border-white/10 bg-[#102128] p-5 text-inherit shadow-2xl">
-          <div className="mb-5 flex items-start justify-between gap-4"><div><h2 className="text-lg font-semibold">连接 PikPak</h2><p className="mt-1 text-sm text-slate-400">{form.mode === 'webdav' ? '使用 PikPak 专用 WebDAV 凭据。' : '使用 PikPak 主账号通过 rclone 原生接口连接，不需要 WebDAV。'}</p></div>{status?.configured ? <Button variant="ghost" size="icon-sm" onClick={() => setShowSettings(false)}><X className="h-4 w-4" /></Button> : null}</div>
+          <div className="mb-5 flex items-start justify-between gap-4"><div><h2 className="text-lg font-semibold">连接 PikPak</h2><p className="mt-1 text-sm text-slate-400">{form.mode === 'webdav' ? '使用 PikPak 专用 WebDAV 凭据。' : '使用 PikPak 主账号通过 rclone 原生接口连接，不需要 WebDAV。'}</p></div><Button variant="ghost" size="icon-sm" aria-label="关闭连接设置" onClick={() => setShowSettings(false)}><X className="h-4 w-4" /></Button></div>
           <form className="space-y-4" onSubmit={saveConfig}>
             <div className="space-y-2"><Label>连接方式</Label><div className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/20 p-1"><button type="button" aria-pressed={form.mode === 'webdav'} onClick={() => setForm((current) => ({ ...current, mode: 'webdav', url: current.url || defaultWebDavUrl }))} className={`rounded-md px-3 py-2 text-sm transition-colors ${form.mode === 'webdav' ? 'bg-cyan-300/15 text-cyan-200' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}>WebDAV</button><button type="button" aria-pressed={form.mode === 'pikpak'} onClick={() => setForm((current) => ({ ...current, mode: 'pikpak' }))} className={`rounded-md px-3 py-2 text-sm transition-colors ${form.mode === 'pikpak' ? 'bg-cyan-300/15 text-cyan-200' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}>账号登录（原生）</button></div></div>
             {form.mode === 'webdav' ? <div className="space-y-2"><Label htmlFor="url">WebDAV 地址</Label><Input id="url" value={form.url} onChange={(event) => setForm({ ...form, url: event.target.value })} required className="border-white/10 bg-black/20" /><p className="text-xs leading-5 text-slate-500">可填 https://dav.pikpak.ai 或旧地址 https://dav.mypikpak.com。</p></div> : null}
