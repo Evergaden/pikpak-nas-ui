@@ -44,8 +44,20 @@ TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT INT TERM
 echo "正在下载 ARM64 Docker 镜像包…"
 if command -v curl >/dev/null 2>&1; then
-  curl -fL "$IMAGE_URL" -o "$TEMP_DIR/$IMAGE_ARCHIVE"
-  curl -fL "$IMAGE_URL.sha256" -o "$TEMP_DIR/$IMAGE_ARCHIVE.sha256"
+  download_with_retry() {
+    ATTEMPT=1
+    until curl --http1.1 -fL --connect-timeout 15 --max-time 1800 --speed-limit 1 --speed-time 30 "$1" -o "$2"; do
+      if [ "$ATTEMPT" -ge 3 ]; then
+        echo "GitHub 下载连续失败；尚未切换容器，请检查 NAS 网络。" >&2
+        return 1
+      fi
+      ATTEMPT=$((ATTEMPT + 1))
+      echo "下载中断，5 秒后进行第 $ATTEMPT 次尝试…"
+      sleep 5
+    done
+  }
+  download_with_retry "$IMAGE_URL" "$TEMP_DIR/$IMAGE_ARCHIVE"
+  download_with_retry "$IMAGE_URL.sha256" "$TEMP_DIR/$IMAGE_ARCHIVE.sha256"
 else
   wget -O "$TEMP_DIR/$IMAGE_ARCHIVE" "$IMAGE_URL"
   wget -O "$TEMP_DIR/$IMAGE_ARCHIVE.sha256" "$IMAGE_URL.sha256"

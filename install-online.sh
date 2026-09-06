@@ -10,7 +10,16 @@ trap 'rm -rf "$TEMP_DIR"' EXIT INT TERM
 
 echo "正在下载 PikPak 落盘助手 $VERSION ..."
 if command -v curl >/dev/null 2>&1; then
-  curl -fL "$URL" -o "$TEMP_DIR/$ARCHIVE"
+  ATTEMPT=1
+  until curl --http1.1 -fL --connect-timeout 15 --max-time 120 --speed-limit 1 --speed-time 30 "$URL" -o "$TEMP_DIR/$ARCHIVE"; do
+    if [ "$ATTEMPT" -ge 3 ]; then
+      echo "GitHub 安装包下载连续失败，请检查 NAS 到 GitHub 的网络连接。" >&2
+      exit 1
+    fi
+    ATTEMPT=$((ATTEMPT + 1))
+    echo "下载中断，5 秒后进行第 $ATTEMPT 次尝试…"
+    sleep 5
+  done
 elif command -v wget >/dev/null 2>&1; then
   wget -O "$TEMP_DIR/$ARCHIVE" "$URL"
 else
