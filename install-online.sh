@@ -1,10 +1,10 @@
 #!/bin/sh
 set -eu
 
-VERSION="v0.2.3"
-ARCHIVE="pikpak-nas-ui-v0.2.3.zip"
+VERSION="v0.2.5"
+ARCHIVE="pikpak-nas-ui-v0.2.5.zip"
 URL="https://github.com/Evergaden/pikpak-nas-ui/releases/download/$VERSION/$ARCHIVE"
-EXPECTED_SHA256="1e59a2c49dc3dcc5b788d7ae5551cb08fcab925fb5f4c6932d5029de262861e0"
+EXPECTED_SHA256="cb14fec91d11c2457f33b3283080b90405aec0e5b41f538454109f95b7c58777"
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT INT TERM
 

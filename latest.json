@@ -1,7 +1,7 @@
 {
-  "version": "0.2.3",
-  "imageBundleUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.3/pikpak-nas-images-v0.2.3.tar.gz",
-  "imageBundleChecksumUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.3/pikpak-nas-images-v0.2.3.tar.gz.sha256",
-  "notes": "新增 PikPak 账号登录（原生 rclone），修复容器 DNS 导致更新检查和 PikPak 连接失败的问题；保留 WebDAV。",
-  "publishedAt": "2026-09-05"
+  "version": "0.2.5",
+  "imageBundleUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.5/pikpak-nas-images-v0.2.5.tar.gz",
+  "imageBundleChecksumUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.5/pikpak-nas-images-v0.2.5.tar.gz.sha256",
+  "notes": "修复原生账号登录缺少令牌；未连接 PikPak 时也可关闭配置弹窗、检查更新。",
+  "publishedAt": "2026-09-06"
 }
