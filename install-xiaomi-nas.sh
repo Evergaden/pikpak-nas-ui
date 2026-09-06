@@ -9,7 +9,8 @@ CONFIG_ROOT="$APP_ROOT/config"
 ENV_FILE="$CONFIG_ROOT/app.env"
 VERSION="0.2.5"
 IMAGE_ARCHIVE="pikpak-nas-images-v$VERSION.tar.gz"
-IMAGE_URL="https://github.com/Evergaden/pikpak-nas-ui/releases/download/v$VERSION/$IMAGE_ARCHIVE"
+IMAGE_URL="https://api.github.com/repos/Evergaden/pikpak-nas-ui/releases/assets/547146824"
+IMAGE_CHECKSUM_URL="https://api.github.com/repos/Evergaden/pikpak-nas-ui/releases/assets/547146821"
 
 if [ ! -x "$DOCKER" ]; then
   echo "找不到 Docker：$DOCKER" >&2
@@ -46,7 +47,7 @@ echo "正在下载 ARM64 Docker 镜像包…"
 if command -v curl >/dev/null 2>&1; then
   download_with_retry() {
     ATTEMPT=1
-    until curl --http1.1 -fL --connect-timeout 15 --max-time 1800 --speed-limit 1 --speed-time 30 "$1" -o "$2"; do
+    until curl --http1.1 -fL --connect-timeout 15 --max-time 1800 --speed-limit 1 --speed-time 30 -H "Accept: application/octet-stream" -H "X-GitHub-Api-Version: 2022-11-28" -H "User-Agent: pikpak-nas-installer" "$1" -o "$2"; do
       if [ "$ATTEMPT" -ge 3 ]; then
         echo "GitHub 下载连续失败；尚未切换容器，请检查 NAS 网络。" >&2
         return 1
@@ -57,10 +58,10 @@ if command -v curl >/dev/null 2>&1; then
     done
   }
   download_with_retry "$IMAGE_URL" "$TEMP_DIR/$IMAGE_ARCHIVE"
-  download_with_retry "$IMAGE_URL.sha256" "$TEMP_DIR/$IMAGE_ARCHIVE.sha256"
+  download_with_retry "$IMAGE_CHECKSUM_URL" "$TEMP_DIR/$IMAGE_ARCHIVE.sha256"
 else
-  wget -O "$TEMP_DIR/$IMAGE_ARCHIVE" "$IMAGE_URL"
-  wget -O "$TEMP_DIR/$IMAGE_ARCHIVE.sha256" "$IMAGE_URL.sha256"
+  wget --header="Accept: application/octet-stream" --header="X-GitHub-Api-Version: 2022-11-28" --header="User-Agent: pikpak-nas-installer" -O "$TEMP_DIR/$IMAGE_ARCHIVE" "$IMAGE_URL"
+  wget --header="Accept: application/octet-stream" --header="X-GitHub-Api-Version: 2022-11-28" --header="User-Agent: pikpak-nas-installer" -O "$TEMP_DIR/$IMAGE_ARCHIVE.sha256" "$IMAGE_CHECKSUM_URL"
 fi
 EXPECTED=$(awk '{print $1}' "$TEMP_DIR/$IMAGE_ARCHIVE.sha256" | tr 'A-F' 'a-f')
 if command -v sha256sum >/dev/null 2>&1; then
