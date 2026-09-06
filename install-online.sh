@@ -51,6 +51,7 @@ if [ -z "$INSTALLER" ]; then
 fi
 INSTALL_DIR=$(dirname "$INSTALLER")
 cd "$INSTALL_DIR"
-sed -i 's/\r$//' install-xiaomi-nas.sh
+tr -d '\r' < install-xiaomi-nas.sh > install-xiaomi-nas.sh.lf
+mv install-xiaomi-nas.sh.lf install-xiaomi-nas.sh
 chmod +x install-xiaomi-nas.sh
 ./install-xiaomi-nas.sh
