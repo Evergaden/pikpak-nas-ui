@@ -1,7 +1,7 @@
 {
-  "version": "0.2.5",
-  "imageBundleUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.5/pikpak-nas-images-v0.2.5.tar.gz",
-  "imageBundleChecksumUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.5/pikpak-nas-images-v0.2.5.tar.gz.sha256",
-  "notes": "修复原生账号登录缺少令牌；未连接 PikPak 时也可关闭配置弹窗、检查更新。",
+  "version": "0.2.6",
+  "imageBundleUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.6/pikpak-nas-images-v0.2.6.tar.gz",
+  "imageBundleChecksumUrl": "https://github.com/Evergaden/pikpak-nas-ui/releases/download/v0.2.6/pikpak-nas-images-v0.2.6.tar.gz.sha256",
+  "notes": "应用和更新器改用 NAS 宿主机网络，修复 Docker 桥接网络无法访问 DNS；包含原生账号授权修复。",
   "publishedAt": "2026-09-06"
 }
